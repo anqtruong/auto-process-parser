@@ -1,5 +1,9 @@
 import requests
 import streamlit as st
+import sys 
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", "backend"))
+import normalizer
 
 st.title("Auto Process Parser by An Truong")
 st.header("Please submit your document (PDF).")
@@ -14,7 +18,7 @@ if uploadedFile is not None:
 
     data = {
         "lang_list": "ch",
-        "backend": "hybrid-engine",
+        "backend": "hybrid-engine", #You need a GPU for hybrid-engine. Use use ipeline for CPU.
         "effort": "medium",
         "parse_method": "auto",
         "formula_enable": "true",
@@ -35,18 +39,10 @@ if uploadedFile is not None:
 
         if markdown:
             st.success("Done!")
-            st.markdown(markdown)
+            st.markdown(normalizer.takeFile(st.markdown(markdown)))
 
     except requests.exceptions.RequestException as e:
         st.error(f"API request failed: {e}")
 
 else:
     st.error("No file uploaded yet.")
-
-#Test MinerU API connection
-"""try:
-    response = requests.get("http://127.0.0.1:8000/health")
-    st.write(response.json())
-
-except requests.exceptions.ConnectionError:
-    st.error("Backend couldn't be reached")"""
