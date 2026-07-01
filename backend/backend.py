@@ -3,7 +3,7 @@ import anthropic
 client = anthropic.Anthropic()
 
 
-def takeFile(markdown):
+def normalizeFile(markdown): # Fixes extraction errors
 
     SYSTEM_PROMPT = """You are a text normalization assistant for NRC (Nuclear Regulatory Commission) Technical Specification documents. Raw text was extracted from PDFs by an automated parser and contains structural and OCR errors introduced during extraction. Your sole job is to correct those errors. Do not add, remove, or change any substantive content.
         
@@ -86,9 +86,6 @@ def takeFile(markdown):
     - Preserve all LCO/SR/clause numbering exactly
     - Separate major sections with a single blank line"""
 
-    with open(markdown, "r", encoding="utf-8") as f:
-        plaintext = f.read()
-
     response = client.messages.create(
     model="claude-sonnet-5",
     max_tokens=8096,
@@ -99,11 +96,14 @@ def takeFile(markdown):
             "content": [
                 {
                     "type": "text",
-                    "text": f"Normalize the following extracted text according to your instructions: {plaintext}",
+                    "text": f"Normalize the following extracted text according to your instructions: {markdown}",
                 }
             ],
         }
     ],
 )
 
-    return response.content[0].text
+    return response.content[0].text # type: ignore
+
+def extractRules():
+    return

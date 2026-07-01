@@ -3,7 +3,7 @@ import streamlit as st
 import sys 
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "backend"))
-import normalizer
+import backend
 
 st.title("Auto Process Parser by An Truong")
 st.header("Please submit your document (PDF).")
@@ -18,7 +18,7 @@ if uploadedFile is not None:
 
     data = {
         "lang_list": "ch",
-        "backend": "hybrid-engine", #You need a GPU for hybrid-engine. Use use ipeline for CPU.
+        "backend": "pipeline", #You need a GPU for hybrid-engine. Use use ipeline for CPU.
         "effort": "medium",
         "parse_method": "auto",
         "formula_enable": "true",
@@ -39,7 +39,7 @@ if uploadedFile is not None:
 
         if markdown:
             st.success("Done!")
-            st.markdown(normalizer.takeFile(st.markdown(markdown)))
+            st.markdown(backend.normalizeFile(markdown))
 
     except requests.exceptions.RequestException as e:
         st.error(f"API request failed: {e}")
