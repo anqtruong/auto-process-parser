@@ -29,17 +29,17 @@ if uploaded_file is not None:
     }
 
     try:
-        with st.spinner("Parsing document... this may take a minute."):
-            response = requests.post("http://127.0.0.1:8000/file_parse", files=file, data=data)
+        with st.spinner("Parsing document... this may take a minute."): # Loading animation :D
+            response = requests.post("http://127.0.0.1:8000/file_parse", files=file, data=data) # Post request to MinerU API. File gets passed to MinerU, along with settings for extraction.
         response.raise_for_status() # Check for HTTP error
 
-        result = response.json()
-        output = list(result["results"].values())[0]
-        markdown = output.get("md_content")
+        result = response.json() # Parses HTTP response body into a dict
+        output = list(result["results"].values())[0] # Only one file uploaded, so grab the first (only) result
+        markdown = output.get("md_content") # pulls md_content field from the output variable. If the field is missing, will return None
 
-        if markdown:
+        if markdown: # If markdown is not None
             st.success("Done!")
-            st.markdown(backend.normalize_file(markdown))
+            st.markdown(backend.normalize_file(markdown)) # LLM normalizes the md plaintext. Then, streamlit renders the plaintext as markdown on the frontend
 
     except requests.exceptions.RequestException as e:
         st.error(f"API request failed: {e}")
