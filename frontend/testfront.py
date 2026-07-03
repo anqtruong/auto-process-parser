@@ -71,6 +71,29 @@ if uploaded_file is not None:
 if not extracted_rules:
     st.warning("No extractable setpoints found in this document.")
 else:
-    for record in extracted_rules:
+
+
+    """
+     for record in extracted_rules:
         with st.expander(record.source_text):
-            st.text_area(record.model_dump_json(indent=2, exclude={"source_text"}), language="json")
+            st.text_area(record.model_dump_json(indent=2, exclude={"source_text"}), language
+    """
+
+
+    """for i, record in enumerate(extracted_rules):
+        with st.expander(record.source_text):
+            edited = st.text_area(
+                "Edit JSON",
+                value=record.model_dump_json(indent=2, exclude={"source_text"}),
+                height=200,
+                key=f"editor_{i}",
+            )
+            if st.button("Validate", key=f"validate_{i}"):
+                try:
+                    import json
+                    parsed = json.loads(edited)
+                    st.success("Valid JSON")
+                    st.json(parsed)
+                except json.JSONDecodeError as e:
+                    st.error(f"Invalid JSON: {e}")
+"""
