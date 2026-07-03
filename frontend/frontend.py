@@ -38,8 +38,19 @@ if uploaded_file is not None:
         markdown = output.get("md_content") # pulls md_content field from the output variable. If the field is missing, will return None
 
         if markdown: # If markdown is not None
+            with st.spinner("Normalizing text..."):
+                normalized = backend.normalize_file(markdown)
+            with st.spinner("Extracting rules..."):
+                extracted_rules = backend.extract_rules(normalized)
+
             st.success("Done!")
-            st.markdown(backend.normalize_file(markdown)) # LLM normalizes the md plaintext. Then, streamlit renders the plaintext as markdown on the frontend
+
+            if not extracted_rules:
+                st.warning("No extractable setpoints found in this document.")
+            else:
+                for record in extracted_rules:
+                    st.write(record.source_text)
+                    st.code(record.model_dump_json(indent=2, exclude={"source_text"}), language="json")
 
     except requests.exceptions.RequestException as e:
         st.error(f"API request failed: {e}")
