@@ -76,11 +76,13 @@ else:
     """
      for record in extracted_rules:
         with st.expander(record.source_text):
-            st.text_area(record.model_dump_json(indent=2, exclude={"source_text"}), language
+            st.code(record.model_dump_json(indent=2, exclude={"source_text"}), language="json")             
     """
 
 
-    """for i, record in enumerate(extracted_rules):
+
+    """
+    for i, record in enumerate(extracted_rules):
         with st.expander(record.source_text):
             edited = st.text_area(
                 "Edit JSON",
@@ -96,4 +98,4 @@ else:
                     st.json(parsed)
                 except json.JSONDecodeError as e:
                     st.error(f"Invalid JSON: {e}")
-"""
+    """ 
