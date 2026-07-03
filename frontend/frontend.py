@@ -5,20 +5,20 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "backend"))
 import backend
 
-st.title("Auto Process Parser by An Truong")
+st.title("Auto Process Parser")
 st.header("Please submit your document (PDF).")
 
-uploadedFile = st.file_uploader("Upload", type="pdf") #Takes in a PDF uploaded by user
-if uploadedFile is not None:
+uploaded_file = st.file_uploader("Upload", type="pdf") #Takes in a PDF uploaded by user
+if uploaded_file is not None:
     st.success("File successfully uploaded!")
 
     file = {
-        "files": (uploadedFile.name, uploadedFile.getvalue(), "application/pdf")
+        "files": (uploaded_file.name, uploaded_file.getvalue(), "application/pdf")
     }
 
-    data = {
+    data = { # MinerU settings. Check API docs @ http://127.0.0.1:8000/docs with MinerU backend running for more details. This is under POST /file_parse
         "lang_list": "ch",
-        "backend": "pipeline", #You need a GPU for hybrid-engine. Use use ipeline for CPU.
+        "backend": "pipeline", #You need a GPU for hybrid-engine. Use pipeline for CPU-only. CPU only is much cheaper, and we can achieve extremely similar results thanks to our LLM normalization!
         "effort": "medium",
         "parse_method": "auto",
         "formula_enable": "true",
@@ -31,7 +31,7 @@ if uploadedFile is not None:
     try:
         with st.spinner("Parsing document... this may take a minute."):
             response = requests.post("http://127.0.0.1:8000/file_parse", files=file, data=data)
-        response.raise_for_status()
+        response.raise_for_status() # Check for HTTP error
 
         result = response.json()
         output = list(result["results"].values())[0]
@@ -39,7 +39,7 @@ if uploadedFile is not None:
 
         if markdown:
             st.success("Done!")
-            st.markdown(backend.normalizeFile(markdown))
+            st.markdown(backend.normalize_file(markdown))
 
     except requests.exceptions.RequestException as e:
         st.error(f"API request failed: {e}")
