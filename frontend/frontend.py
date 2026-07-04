@@ -49,8 +49,8 @@ if uploaded_file is not None:
                 st.warning("No extractable setpoints found in this document.")
             else:
                 for record in extracted_rules:
-                    st.write(record.source_text)
-                    st.code(record.model_dump_json(indent=2, exclude={"source_text"}), language="json")
+                    with st.expander(record.source_text):
+                        st.code(record.model_dump_json(indent=2, exclude={"source_text"}), language="json")             
 
     except requests.exceptions.RequestException as e:
         st.error(f"API request failed: {e}")

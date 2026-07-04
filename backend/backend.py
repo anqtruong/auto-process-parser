@@ -1,5 +1,5 @@
 import anthropic
-from json_schema import setpoint_list
+from important_files.json_schema import setpoint_list
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -334,7 +334,7 @@ def extract_rules(markdown):
     """
 
     response = client.messages.parse(
-    model="claude-haiku-4-5",
+    model="claude-sonnet-5",
     max_tokens=8096,
     system=SYSTEM_PROMPT,
     messages=[
