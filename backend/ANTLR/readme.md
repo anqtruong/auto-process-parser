@@ -27,11 +27,17 @@ Java - 21.0.12
 To run ANTLR in the terminal do the following.
 1. Ensure correct versions of the listed software are being used. (ANTLR is unable to work with java version > 21 [last time I checked])
 2. run the "antlr4" command on the main .g4 file (not lexerRules.g4)
-    EX: "antlr4 ProcessObjects.g4"
+
+EX: "antlr4 ProcessObjects.g4"
+
 3. Compile the generated java files from antlr 
-    "javac *.java"
+
+  "javac *.java"
+
 4. Use the 'grun' command to run ANTLR on the input file
+
 EX: 'grun ProcessObjects masterRule -gui objectTester.txt'
+
 Structure: grun (grammar file name w/out .g4 extension) (rule to run from grammar file) (option) (input file)
 
 *The -gui option provides a visual representation of the parse tree, which allows for parsing verifcation. Other options can be used to gain more insight (-tokens).
