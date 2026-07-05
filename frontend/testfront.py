@@ -2,7 +2,7 @@ import streamlit as st
 import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "backend"))
-from json_schema import setpoint_record, condition, direction, threshold_type
+from important_files.json_schema import setpoint_record, condition, direction, threshold_type
 
 # Frontend tester (no API calls)
 

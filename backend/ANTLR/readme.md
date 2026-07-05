@@ -35,3 +35,5 @@ EX: 'grun ProcessObjects masterRule -gui objectTester.txt'
 Structure: grun (grammar file name w/out .g4 extension) (rule to run from grammar file) (option) (input file)
 
 *The -gui option provides a visual representation of the parse tree, which allows for parsing verifcation. Other options can be used to gain more insight (-tokens).
+
+ANTLR contributions by Diego Salas-Esquivel
