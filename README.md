@@ -1,6 +1,6 @@
 # HEAD-END Ingestion Pipeline for the SCADA Compiler
 
-Streamlines the translation process from process document -> rules and setpoints -> Process Description Language.
+Streamlines the translation process from process document -> rules and setpoints -> Process Description Language for plants.
 
 ## Pipeline Overview
 
