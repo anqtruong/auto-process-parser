@@ -1,5 +1,7 @@
 # Planning + Notes for translation of JSON to PDL. Notes by An Truong and assisted by Claude
 
+# Note that we focused on Monitoring Needs. Process objects are currently out of scope!
+
 ## Plan
 
 ## Notes
@@ -14,4 +16,4 @@
 | `conditions[].threshold_type` = FORMULA | no counterpart | PDL's value rule only accepts `PV OPERATOR DOUBLE` — a constant. See gaps. |
 | `conditions[].units` | no counterpart (nearest home: adConverters) | Monitoring statements are unitless; units are implicit in the A/D converter's engineering range (`r: ID ':' INT ':' DOUBLE ':' DOUBLE ';'` = variable : bits : range-low : range-high). The unit string itself is dropped. |
 | `function_name` | none — emit as a `/* comment */` | PDL has no trip-name concept. COMMENT is `-> skip`, so it's a safe provenance carrier. |
-| `source_text` | none — emit as a `/* comment */` | Same; it exists for your human-review stage, not for the compiler. |
+| `source_text` | none — emit as a `/* comment */` | Same; it exists for the human-review stage, not for the compiler. |
