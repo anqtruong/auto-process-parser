@@ -17,3 +17,14 @@
 | `conditions[].units` | no counterpart (nearest home: adConverters) | Monitoring statements are unitless; units are implicit in the A/D converter's engineering range (`r: ID ':' INT ':' DOUBLE ':' DOUBLE ';'` = variable : bits : range-low : range-high). The unit string itself is dropped. |
 | `function_name` | none — emit as a `/* comment */` | PDL has no trip-name concept. COMMENT is `-> skip`, so it's a safe provenance carrier. |
 | `source_text` | none — emit as a `/* comment */` | Same; it exists for the human-review stage, not for the compiler. |
+
+
+## Things to consider
+
+![alt text](image-1.png)
+There are other five monitoring constructs (status, frequency, interval, rateOfChange, pollRate) referenced in Nivethan's Dissertation. However, we focused on specifically extracting setpoints, so we will note this as out of scope for the current research period and for future accomplishment.
+
+# Sample Monitoring Needs statement from Nivethan's Dissertation
+![alt text](image.png)
+
+Note how there is no spaces (P1.PV1, P1.PV2, etc). 
