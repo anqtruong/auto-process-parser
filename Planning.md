@@ -22,14 +22,9 @@
      - Perhaps a side-by-side UI to compare the original pdf against the .md.
      - Allow user to manually edit, save, then approve (considering streamlit-code-editor [https://github.com/bouzidanas/streamlit-code-editor] or st.text_area. testfront.py currently has a test of st.text_area available---this allows the user to amend the JSON and check if it's valid JSON, but is not actually wired up to change the content of the JSON objects.)
 
-5. **TODO**: Pass the validated .md to LLM to translate into PDL
-   - How?
-    - Claude will be given the PDL grammar structure + examples.
-     - (3a) Claude receives the .md via Files API
-     - (3b) Claude transform the content via Claude Messages API
-     - (3c) Claude returns transformed content in a .g4 file.
+5. **TODO**: Pass the validated .md to deterministic python program to translate into PDL
 
-6. User will check the .g4 file for correctness.
+6. User will check the output .txt file for correctness.
      
 
 ---
