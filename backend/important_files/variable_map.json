@@ -1,4 +1,8 @@
 {
   "process": "P1",
-  "variables": {}
+  "variables": {
+    "Coolant Header Pressure": "coolantheaderpressure",
+    "Steam Flow": "steamflow",
+    "Drum Level": "drumlevel"
+  }
 }
