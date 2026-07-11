@@ -1,0 +1,27 @@
+[
+  {
+    "variable": "Coolant Header Pressure",
+    "function_name": "Coolant Header Pressure - Low",
+    "source_text": "| Coolant Header Pressure - Low | ≥ 1500 | ≥ 1420 | psig |",
+    "conditions": [
+      { "direction": "BELOW_MIN", "threshold": "1420", "threshold_type": "NUMERIC", "units": "psig", "sub_variable": null }
+    ]
+  },
+  {
+    "variable": "Feed/Steam Flow Mismatch coincident with Low Drum Level",
+    "function_name": "Feed/Steam Flow Mismatch coincident with Low Drum Level",
+    "source_text": "| Feed/Steam Flow Mismatch coincident with Low Drum Level | Steam flow ≤ 38.0% coincident with drum level ≤ 22% | (mixed) |",
+    "conditions": [
+      { "direction": "ABOVE_MAX", "threshold": "38.0", "threshold_type": "NUMERIC", "units": "% of full flow", "sub_variable": "Steam Flow" },
+      { "direction": "BELOW_MIN", "threshold": "22", "threshold_type": "NUMERIC", "units": "% of span", "sub_variable": "Drum Level" }
+    ]
+  },
+  {
+    "variable": "Feed Header Pressure",
+    "function_name": "Feed Header Pressure - Low",
+    "source_text": "| Feed Header Pressure - Low (function of loop temperature) | ≥ (7.44 × T_loop °F − 2210) | psig |",
+    "conditions": [
+      { "direction": "BELOW_MIN", "threshold": "7.44 × T_loop − 2210", "threshold_type": "FORMULA", "units": "psig (T_loop in °F)", "sub_variable": null }
+    ]
+  }
+]

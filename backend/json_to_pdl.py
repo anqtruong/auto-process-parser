@@ -391,3 +391,46 @@ def translate(records, vmap: VariableMap, doc_id: str = "unknown") -> Translatio
         translated_count=translated_count,
         queued_count=len(queue),
     )
+
+
+# --- CLI: inspect I/O by hand (PDL -> stdout, report/queue -> stderr) ---------
+
+def _main(argv=None):
+    import argparse
+    import sys
+    from dataclasses import asdict
+
+    parser = argparse.ArgumentParser(
+        description="Translate extract_rules JSON records to PDL monitoring needs."
+    )
+    parser.add_argument("records", help="JSON file containing an array of setpoint records")
+    parser.add_argument(
+        "--map",
+        default=str(Path(__file__).parent / "important_files" / "variable_map.json"),
+        help="variable_map.json path (default: important_files/variable_map.json)",
+    )
+    parser.add_argument("--doc-id", default=None, help="document id for the header (default: records filename)")
+    parser.add_argument("--report", action="store_true", help="also print the full report + queue as JSON to stderr")
+    args = parser.parse_args(argv)
+
+    with open(args.records, encoding="utf-8") as f:
+        records = json.load(f)
+    vmap = VariableMap.load(args.map)
+    result = translate(records, vmap, doc_id=args.doc_id or Path(args.records).stem)
+
+    print(result.pdl_text, end="")  # stdout is pure PDL — pipeable/redirectable
+    print(
+        f"[json_to_pdl v{TRANSLATOR_VERSION}] {result.translated_count} translated, "
+        f"{result.queued_count} queued",
+        file=sys.stderr,
+    )
+    if args.report:
+        payload = {
+            "report": [asdict(r) for r in result.report],
+            "queue": [asdict(q) for q in result.queue],
+        }
+        print(json.dumps(payload, indent=2, ensure_ascii=False), file=sys.stderr)
+
+
+if __name__ == "__main__":
+    _main()
