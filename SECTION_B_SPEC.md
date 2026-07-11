@@ -10,6 +10,25 @@ section numbering).
 
 ---
 
+## How this works in five sentences
+
+The translator takes each JSON setpoint record, looks up its variable name in
+`variable_map.json` (e.g. "Coolant Header Pressure" → `P1.coolantheaderpressure`),
+turns its direction into an operator (`BELOW_MIN` → `<`, `ABOVE_MAX` → `>`),
+and prints one PDL line like `value P1.coolantheaderpressure < 1420.;` —
+that's the whole idea. Records whose legs name sub-variables become one
+`multipleMatch (...) (...)` line instead of `value` lines. Anything the
+translator can't handle safely (missing fields, formulas, unknown variables,
+weird thresholds) is never guessed at — the whole record goes to a review
+queue with a reason code, for a human to fix and re-run. At the end it proves
+nothing was lost (`translated + queued == records`) and emits the file with
+all `value` lines before any `multipleMatch` (the grammar requires that
+order). Everything else in this spec is guard rails around those five
+sentences; day to day you only touch `variable_map.json` (paste the queue's
+suggested names) and, when the grammar decision lands, `format_number`.
+
+---
+
 ## Flow diagram
 
 ![Section B translator flow](section_b_flow.svg)
