@@ -1,4 +1,4 @@
-grammar MonitoringNeeds;
+grammar monitoringNeeds;
 import lexerRules;
 
 masterRule:
@@ -20,11 +20,12 @@ value:
 	;
 
 multiple:
-	'multipleMatch' element* ';' 
+	'multipleMatch' element element (element)*';' 
+	//Minimum of 2 elements
 	;
 
   element: rn | st ;
-    rn : '(' PV OPERATOR (DOUBLE | INT)* ')' ;
+    rn : '(' PV OPERATOR (DOUBLE | INT) ')' ;
     st : '(' PV OPERATOR BOOL  ')' ;
 
 frequency:

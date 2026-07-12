@@ -1,12 +1,22 @@
-grammar ProcessObjects;
+grammar systemDescription;
 import lexerRules;
 
+/*
+This is the rule responsible for calling an entire 'construct'
+This allows for multiple constructs to be in one input file.
+Multiple process variables can belong to one PLC so its important to understand the whole picture.
+*/
+
 masterRule:
-	process*
-	plc*
-	plcToProcess*
-	adConverters*
-	modbusMapping*
+	construct (construct)*
+	;
+
+construct:
+	process
+	plc
+	plcToProcess
+	adConverters
+	dnp3Mapping
 	;
 
 
@@ -42,7 +52,7 @@ analog_controls:
 //PLC object rules
 plc:
     'PLC' ID '{'
-       'id:' INT ';' //~ 'slave_address:' INT' ';'
+       'slave_address:' INT ';' //~ 'slave_address:' INT' ';'
        'ip:' IP ';' 
        'protocol:' ID ';' 
 
@@ -56,28 +66,28 @@ inputs:
 outputs: 
    'outputs:' ID (',' ID)* ';' ;
 
+//ad converter
+adConverters:
+   'adConverters' '{'
+	r*
+   '}';
+ 
+r: ID ':' INT ':' DOUBLE ':' DOUBLE ';' ;
+
+
 //PLC to Process
 plcToProcess:
 	'plcToProcess' ID '{'
 	ID (',' ID)* 
 	'}' ;
 
-
-//ad converter
-adConverters:
-   'adConverters' '{'
-	r*
-   '}';
-
-r: ID ':' INT ':' DOUBLE ':' DOUBLE ';' ;
-
-//Modbus memory modbus 
-modbusMapping:
-	'modbusMapping' ID '{'
-	 mapping*
-	'}';
-
-mapping:
-	ID ':' ID ':' INT ';'
+dnp3Mapping:
+	'dnp3Mapping' ID '{'
+	raw*
+	'}'
 	;
 
+raw:
+	ID ':' INT ':' INT ':' INT ';'
+	//Name : object number - variation - index
+	;
