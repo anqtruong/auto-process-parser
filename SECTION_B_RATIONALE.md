@@ -269,11 +269,22 @@ preserving the B.2 rule that the suggester never emits directly.
 
 **Why the report covers every record, both outcomes.**
 The report is the audit trail: for any record you can ask "what happened to
-it?" and get an answer without diffing files. If only translated records
-appeared, queued ones would be visible solely in the queue, and the
-record→outcome mapping would need reconstruction. The raw/emitted threshold
+it?" and get an answer without diffing files. The raw/emitted threshold
 pairs exist because normalization is the only place digits legitimately
 change — so it's the place a reviewer must be able to watch.
+
+**Why one unified row type with the queue as a view (revised 2026-07-13).**
+The original design had two types — `QueueEntry` and `ReportRow` — and a
+queued record appeared in both lists with four fields duplicated. An's review
+caught the smell: duplicated truth can drift, the field split was arbitrary
+(why did only queue entries carry `source_text`?), and `reason`/`detail`
+didn't say what they held. Now every row carries the full context
+(`variable`, `source_text`, `suggested_pv`) plus renamed `reason_code`
+(machine-readable enum) and `explanation` (human-readable), and
+`TranslationResult.queue` is a filtered view of the report rather than a
+second list. Cost: bulkier report files (source text on every row). Gain: one
+schema for both Section C gates, no cross-list consistency to maintain, and
+the accounting invariant reads directly off one list.
 
 **Why `translate_records()` is a pure function with no I/O.**
 Testability (call it with literals, assert on strings — no tmp-dir fixtures),

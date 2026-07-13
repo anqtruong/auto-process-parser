@@ -89,7 +89,7 @@ def test_example_4_formula_queued():
                          threshold_type="FORMULA", units="psig (T_loop in °F)")])]
     result = translate_records(records, VMAP)
     assert result.translated_count == 0 and result.queued_count == 1
-    assert result.queue[0].reason == j2p.FORMULA_THRESHOLD
+    assert result.queue[0].reason_code == j2p.FORMULA_THRESHOLD
 
 
 def test_example_5_conjunctive(assert_parses):
@@ -161,13 +161,13 @@ def test_ascii_scientific():
 def test_unparseable_threshold_queues():
     records = [rec("Steam Flow", "f", [cond("BELOW_MIN", "3558 volts for 10 ± 1.5 sec")])]
     result = translate_records(records, VMAP)
-    assert result.queue[0].reason == j2p.UNPARSEABLE_THRESHOLD
+    assert result.queue[0].reason_code == j2p.UNPARSEABLE_THRESHOLD
 
 
 def test_negative_threshold_queues():
     records = [rec("Steam Flow", "f", [cond("BELOW_MIN", "-10")])]
     result = translate_records(records, VMAP)
-    assert result.queue[0].reason == j2p.NEGATIVE_THRESHOLD
+    assert result.queue[0].reason_code == j2p.NEGATIVE_THRESHOLD
 
 
 def test_parse_threshold_rejects_junk():
@@ -181,14 +181,14 @@ def test_parse_threshold_rejects_junk():
 def test_missing_sentinel_queues():
     records = [rec("Steam Flow", "f", [cond("BELOW_MIN", "10", units="MISSING_UNITS")])]
     result = translate_records(records, VMAP)
-    assert result.queue[0].reason == j2p.MISSING_FIELD
-    assert "conditions[0].units" in result.queue[0].detail
+    assert result.queue[0].reason_code == j2p.MISSING_FIELD
+    assert "conditions[0].units" in result.queue[0].explanation
 
 
 def test_empty_conditions_queue():
     records = [rec("Steam Flow", "f", [])]
     result = translate_records(records, VMAP)
-    assert result.queue[0].reason == j2p.EMPTY_CONDITIONS
+    assert result.queue[0].reason_code == j2p.EMPTY_CONDITIONS
 
 
 def test_mixed_legs_queue():
@@ -197,14 +197,14 @@ def test_mixed_legs_queue():
         cond("ABOVE_MAX", "20", sub_variable="Drum Level"),
     ])]
     result = translate_records(records, VMAP)
-    assert result.queue[0].reason == j2p.MALFORMED_SHAPE
+    assert result.queue[0].reason_code == j2p.MALFORMED_SHAPE
 
 
 def test_invalid_direction_queues():
     # Gate A hands back edited dicts that bypass Pydantic's enum
     records = [rec("Steam Flow", "f", [cond("BELOW", "10")])]
     result = translate_records(records, VMAP)
-    assert result.queue[0].reason == j2p.MALFORMED_SHAPE
+    assert result.queue[0].reason_code == j2p.MALFORMED_SHAPE
 
 
 def test_three_leg_conjunctive(assert_parses):
@@ -223,7 +223,7 @@ def test_unmapped_variable_suggests_pv():
     records = [rec("Reactor Building Spray Flow", "f", [cond("BELOW_MIN", "10")])]
     result = translate_records(records, VMAP)
     entry = result.queue[0]
-    assert entry.reason == j2p.UNMAPPED_VARIABLE
+    assert entry.reason_code == j2p.UNMAPPED_VARIABLE
     assert entry.suggested_pv == "reactorbuildingsprayflow"
 
 

@@ -284,42 +284,43 @@ it is Gate B's re-review trigger.
 (all of `masterRule`'s children are `*`-quantified, so empty input should be
 accepted — verify once in tests).
 
-## B.7 Queue and report
+## B.7 Report and queue (unified 2026-07-13)
 
-**Queue entry:**
+**One row per input record** — the single source of truth for what happened:
 
 ```json
 {
-  "record_index": 3,
+  "record_index": 2,
   "function_name": "Feed Header Pressure - Low",
   "variable": "Feed Header Pressure",
-  "reason": "FORMULA_THRESHOLD",
-  "detail": "threshold '7.44 × T_loop − 2210' has threshold_type FORMULA",
-  "suggested_pv": null,
-  "source_text": "..."
+  "source_text": "| Feed Header Pressure - Low (function of loop temperature) | ... |",
+  "outcome": "queued",
+  "statements": [],
+  "thresholds": [],
+  "reason_code": "FORMULA_THRESHOLD",
+  "explanation": "conditions[0] threshold '7.44 × T_loop − 2210' is a FORMULA",
+  "suggested_pv": null
 }
 ```
 
-Reason codes (closed set): `MISSING_FIELD`, `EMPTY_CONDITIONS`,
+Translated rows carry `statements` + `thresholds` (with `reason_code`/
+`explanation`/`suggested_pv` null); queued rows carry the reverse. Every row
+carries `variable` and verbatim `source_text`, so each is a self-contained
+work item.
+
+`reason_code` values (closed set): `MISSING_FIELD`, `EMPTY_CONDITIONS`,
 `FORMULA_THRESHOLD`, `MALFORMED_SHAPE`, `UNPARSEABLE_THRESHOLD`,
 `NEGATIVE_THRESHOLD`, `UNMAPPED_VARIABLE`. For `UNMAPPED_VARIABLE`, populate
-`suggested_pv` with `suggest_pv_name(variable)` so Gate A resolution is one copy-paste
-into `variable_map.json`.
+`suggested_pv` with `suggest_pv_name(variable)` so Gate A resolution is one
+copy-paste into `variable_map.json`. `explanation` is the human-readable
+companion to the machine-readable `reason_code`.
 
-**Report row** (one per record, both outcomes):
+**The queue is a view, not a second list:** `TranslationResult.queue` is a
+property returning `[r for r in report if r.outcome == "queued"]`. Same rows,
+no duplicated truth to drift apart.
 
-```json
-{
-  "record_index": 0,
-  "function_name": "Coolant Header Pressure - Low",
-  "outcome": "translated",
-  "statements": ["value P1.coolantheaderpressure < 1420.;"],
-  "thresholds": [{"raw": "1420", "emitted": "1420."}]
-}
-```
-
-The `raw`/`emitted` pairs are the Gate B centerpiece — every normalization
-visible side by side.
+The `raw`/`emitted` threshold pairs are the Gate B centerpiece — every
+normalization visible side by side.
 
 **Top-level API:**
 
@@ -327,10 +328,12 @@ visible side by side.
 @dataclass
 class TranslationResult:
     pdl_text: str
-    queue: list[QueueEntry]
-    report: list[ReportRow]
+    report: list[ReportRow]        # one row per input record
     translated_count: int
     queued_count: int
+
+    @property
+    def queue(self): ...           # outcome == "queued" view of report
 
 def translate_records(records, vmap: VariableMap, doc_id: str = "unknown") -> TranslationResult
     # runs the invariant check before returning; raises AccountingError on imbalance
