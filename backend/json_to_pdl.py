@@ -25,13 +25,14 @@ from pathlib import Path
 TRANSLATOR_VERSION = "0.2.0"
 
 # --- reason codes: closed set (B.7) ----------------------------------------
-MISSING_FIELD = "MISSING_FIELD"
-EMPTY_CONDITIONS = "EMPTY_CONDITIONS"
-FORMULA_THRESHOLD = "FORMULA_THRESHOLD"
-MALFORMED_SHAPE = "MALFORMED_SHAPE"
-UNPARSEABLE_THRESHOLD = "UNPARSEABLE_THRESHOLD"
-NEGATIVE_THRESHOLD = "NEGATIVE_THRESHOLD"
-UNMAPPED_VARIABLE = "UNMAPPED_VARIABLE"
+# These are the "reasons" as to why the rule was passed to the queue for human amendment rather than being translated
+MISSING_FIELD = "MISSING_FIELD" # Field with "MISSING_*". This means the record was incomplete
+EMPTY_CONDITIONS = "EMPTY_CONDITIONS" # The record had no conditions. Nothing to translate
+FORMULA_THRESHOLD = "FORMULA_THRESHOLD" # threshold_type in the JSON object was FORMULA. PDL's value rule only takes a constant, so it can't be expressed
+MALFORMED_SHAPE = "MALFORMED_SHAPE" # the record's structure matches no shape the translator knows how to interpret
+UNPARSEABLE_THRESHOLD = "UNPARSEABLE_THRESHOLD" # Claimed NUMERIC but the string isn't a single plain number (tolerance, range, time qualifier)
+NEGATIVE_THRESHOLD = "NEGATIVE_THRESHOLD" # the number is negative, and the current grammar has no way to put a minus sign in the number position
+UNMAPPED_VARIABLE = "UNMAPPED_VARIABLE" # the variable name isn't in variable_map.json and needs to be populated; the entry ships a suggested_pv so fixing it is one paste!
 
 # --- direction -> operator (B.4): strict, never defaulted ------------------
 OPERATOR = {"BELOW_MIN": "<", "ABOVE_MAX": ">"}
