@@ -77,13 +77,13 @@ lexer's rule ordering) the name must contain a dot or it tokenizes as `ID` and
 the parse fails. *Something* must own the conversion, and it must be
 inspectable.
 
-**Why a lookup file instead of pure auto-mangling.**
-A mangler is deterministic but has no judgment: `"Steam Flow"` from two
-different systems both mangle to `steamflow`, silently merging two different
+**Why a lookup file instead of pure auto-naming.**
+The name suggester (suggest_pv_name) is deterministic but has no judgment: `"Steam Flow"` from two
+different systems both reduce to `steamflow`, silently merging two different
 setpoints onto one monitored variable — undetectable downstream, and the exact
 kind of error a safety pipeline exists to prevent. The map makes every name
 assignment an explicit human decision, and gives the loader something to
-*check* (collisions, regex validity). The mangler survives only as a
+*check* (collisions, regex validity). The suggester survives only as a
 suggestion generator for queue entries, where a human approves before anything
 is emitted.
 
@@ -263,9 +263,9 @@ code is a deliberate, reviewable act rather than a typo.
 **Why `suggested_pv` on unmapped-variable entries.**
 The resolution workflow should be one human judgment ("yes, that name is
 fine") plus one paste into `variable_map.json`. Without the suggestion, the
-human must also *invent* a lexer-legal name — the mechanical part the mangler
+human must also *invent* a lexer-legal name — the mechanical part the suggester
 already does better. The suggestion is machine-generated but human-ratified,
-preserving the B.2 rule that the mangler never emits directly.
+preserving the B.2 rule that the suggester never emits directly.
 
 **Why the report covers every record, both outcomes.**
 The report is the audit trail: for any record you can ask "what happened to
@@ -275,7 +275,7 @@ record→outcome mapping would need reconstruction. The raw/emitted threshold
 pairs exist because normalization is the only place digits legitimately
 change — so it's the place a reviewer must be able to watch.
 
-**Why `translate()` is a pure function with no I/O.**
+**Why `translate_records()` is a pure function with no I/O.**
 Testability (call it with literals, assert on strings — no tmp-dir fixtures),
 reusability (Streamlit Gate B can call it live without touching disk), and
 separation of concerns: *where* files go is a Section C pipeline decision that

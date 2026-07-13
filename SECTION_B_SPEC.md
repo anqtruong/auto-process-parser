@@ -59,7 +59,7 @@ flowchart TD
     subgraph LEG ["per leg — B.2 / B.5 / B.4"]
         H --> J["to_pv: map name → P1.xxx"]
         I --> J
-        J -->|unmapped| Q5["queue: UNMAPPED_VARIABLE\n+ suggested_pv from mangle()"]
+        J -->|unmapped| Q5["queue: UNMAPPED_VARIABLE\n+ suggested_pv from suggest_pv_name()"]
         J -->|mapped| K["parse_threshold → Decimal\n(sci-notation, commas)"]
         K -->|unparseable| Q6["queue: UNPARSEABLE_THRESHOLD"]
         K -->|parsed| L["format_number\n(THE DIEGO SEAM)"]
@@ -161,7 +161,7 @@ backend/
 **Functions:**
 
 ```python
-def mangle(variable: str) -> str
+def suggest_pv_name(variable: str) -> str
     # lowercase; keep [a-z0-9]; drop everything else (spaces, hyphens,
     # slashes, unicode). "Feed/Steam Flow Mismatch" -> "feedsteamflowmismatch"
     # Used ONLY to propose names for queue entries — never to emit.
@@ -303,7 +303,7 @@ accepted — verify once in tests).
 Reason codes (closed set): `MISSING_FIELD`, `EMPTY_CONDITIONS`,
 `FORMULA_THRESHOLD`, `MALFORMED_SHAPE`, `UNPARSEABLE_THRESHOLD`,
 `NEGATIVE_THRESHOLD`, `UNMAPPED_VARIABLE`. For `UNMAPPED_VARIABLE`, populate
-`suggested_pv` with `mangle(variable)` so Gate A resolution is one copy-paste
+`suggested_pv` with `suggest_pv_name(variable)` so Gate A resolution is one copy-paste
 into `variable_map.json`.
 
 **Report row** (one per record, both outcomes):
@@ -332,7 +332,7 @@ class TranslationResult:
     translated_count: int
     queued_count: int
 
-def translate(records, vmap: VariableMap, doc_id: str = "unknown") -> TranslationResult
+def translate_records(records, vmap: VariableMap, doc_id: str = "unknown") -> TranslationResult
     # runs the invariant check before returning; raises AccountingError on imbalance
 ```
 
@@ -392,7 +392,7 @@ harness is part of Section B's exit criterion, not optional.
 
 1. `parse_threshold` + `format_number` + tests (pure functions, zero
    dependencies) — also where unanticipated threshold formats will surface.
-2. Variable map load/validate + `mangle`/`to_pv` + tests.
+2. Variable map load/validate + `suggest_pv_name`/`to_pv` + tests.
 3. Classification + emission + the 8 golden tests.
 4. Queue/report/invariant.
 5. Parse-check harness; wire `assert_parses` into the goldens.

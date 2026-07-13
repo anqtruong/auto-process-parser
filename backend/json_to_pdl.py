@@ -49,7 +49,7 @@ class UnmappedVariable(KeyError):
     def __init__(self, variable: str):
         super().__init__(variable)
         self.variable = variable
-        self.suggested = mangle(variable)
+        self.suggested = suggest_pv_name(variable)
 
 
 class UnparseableThreshold(ValueError):
@@ -76,7 +76,7 @@ class _RecordError(Exception):
 
 # --- variable map (B.2) ------------------------------------------------------
 
-def mangle(variable: str) -> str:
+def suggest_pv_name(variable: str) -> str:
     """Propose a lexer-legal local name. Suggestion only — never emitted."""
     return re.sub(r"[^a-z0-9]", "", variable.lower())
 
@@ -160,7 +160,7 @@ def format_number(d: Decimal, verbatim: str | None = None) -> str:
     return s
 
 
-def emit_threshold(raw: str) -> str:
+def normalize_threshold(raw: str) -> str:
     """parse + format; preserves the document's own digits when already plain."""
     d = parse_threshold(raw)
     cleaned = raw.strip().replace(",", "")
@@ -171,7 +171,7 @@ def emit_threshold(raw: str) -> str:
 
 # --- provenance comments (B.6) -----------------------------------------------
 
-def _sanitize(text: str) -> str:
+def _sanitize_comment(text: str) -> str:
     """Untrusted OCR text goes into /* */ comments; '*/' would terminate the
     comment and inject tokens into the parse stream. Also folds newlines."""
     return re.sub(r"\s+", " ", str(text)).replace("*/", "* /").strip()
@@ -182,13 +182,13 @@ def _sanitize(text: str) -> str:
 _CONDITION_FIELDS = ("direction", "threshold", "threshold_type", "units", "sub_variable")
 
 
-def _as_dict(record) -> dict:
+def _record_as_dict(record) -> dict:
     if hasattr(record, "model_dump"):
         return record.model_dump(mode="json")
     return record
 
 
-def _find_missing(rec: dict) -> str | None:
+def _find_missing_sentinel(rec: dict) -> str | None:
     def missing(v):
         return isinstance(v, str) and v.startswith("MISSING_")
 
@@ -233,7 +233,7 @@ class TranslationResult:
     queued_count: int
 
 
-def _leg(vmap: VariableMap, variable: str, cond: dict):
+def _translate_condition(vmap: VariableMap, variable: str, cond: dict):
     """One condition leg -> (pv, operator, emitted-number). Any failure queues
     the whole record (atomicity, B.3)."""
     direction = cond.get("direction")
@@ -252,7 +252,7 @@ def _leg(vmap: VariableMap, variable: str, cond: dict):
         )
     raw = cond.get("threshold", "")
     try:
-        emitted = emit_threshold(raw)
+        emitted = normalize_threshold(raw)
     except UnparseableThreshold:
         raise _RecordError(
             UNPARSEABLE_THRESHOLD, f"threshold {raw!r} is not a single plain number"
@@ -268,7 +268,7 @@ def _leg(vmap: VariableMap, variable: str, cond: dict):
 def _translate_record(rec: dict, vmap: VariableMap) -> tuple:
     """Returns ("value" | "match", comment, statements, thresholds)."""
     # B.3 classification, in spec order — reason codes must be stable.
-    missing = _find_missing(rec)
+    missing = _find_missing_sentinel(rec)
     if missing:
         raise _RecordError(MISSING_FIELD, f"field {missing} carries a MISSING_ sentinel")
 
@@ -290,10 +290,10 @@ def _translate_record(rec: dict, vmap: VariableMap) -> tuple:
             MALFORMED_SHAPE, "legs mix null and named sub_variable"
         )
 
-    units = ", ".join(_sanitize(c.get("units", "")) for c in conditions)
+    units = ", ".join(_sanitize_comment(c.get("units", "")) for c in conditions)
     comment = (
-        f"/* {_sanitize(rec.get('function_name', ''))} | {units} | "
-        f"{_sanitize(rec.get('source_text', ''))} */"
+        f"/* {_sanitize_comment(rec.get('function_name', ''))} | {units} | "
+        f"{_sanitize_comment(rec.get('source_text', ''))} */"
     )
     thresholds = []
 
@@ -301,7 +301,7 @@ def _translate_record(rec: dict, vmap: VariableMap) -> tuple:
         # value path: one statement per leg (simple == two-sided == N-sided)
         statements = []
         for cond in conditions:
-            pv, op, num = _leg(vmap, rec.get("variable", ""), cond)
+            pv, op, num = _translate_condition(vmap, rec.get("variable", ""), cond)
             statements.append(f"value {pv} {op} {num};")
             thresholds.append({"raw": cond.get("threshold"), "emitted": num})
         return ("value", comment, statements, thresholds)
@@ -309,14 +309,14 @@ def _translate_record(rec: dict, vmap: VariableMap) -> tuple:
     # conjunctive path: one multipleMatch, one rn element per leg
     elements = []
     for cond in conditions:
-        pv, op, num = _leg(vmap, cond["sub_variable"], cond)
+        pv, op, num = _translate_condition(vmap, cond["sub_variable"], cond)
         elements.append(f"({pv} {op} {num})")
         thresholds.append({"raw": cond.get("threshold"), "emitted": num})
     statement = "multipleMatch " + " ".join(elements) + ";"
     return ("match", comment, [statement], thresholds)
 
 
-def translate(records, vmap: VariableMap, doc_id: str = "unknown") -> TranslationResult:
+def translate_records(records, vmap: VariableMap, doc_id: str = "unknown") -> TranslationResult:
     """Records in; PDL text + queue + report out. Pure function, no I/O."""
     value_blocks = []   # (comment, statements)
     match_blocks = []
@@ -324,7 +324,7 @@ def translate(records, vmap: VariableMap, doc_id: str = "unknown") -> Translatio
     report = []
 
     for idx, raw_rec in enumerate(records):
-        rec = _as_dict(raw_rec)
+        rec = _record_as_dict(raw_rec)
         fn = rec.get("function_name", "")
         try:
             result = _translate_record(rec, vmap)
@@ -362,7 +362,7 @@ def translate(records, vmap: VariableMap, doc_id: str = "unknown") -> Translatio
 
     header = (
         f"/* generated by json_to_pdl v{TRANSLATOR_VERSION}\n"
-        f"   document: {_sanitize(doc_id)}\n"
+        f"   document: {_sanitize_comment(doc_id)}\n"
         f"   records: {translated_count} translated / {len(queue)} queued */"
     )
     lines = [header]
@@ -404,7 +404,7 @@ def _main(argv=None):
     with open(args.records, encoding="utf-8") as f:
         records = json.load(f)
     vmap = VariableMap.load(args.map)
-    result = translate(records, vmap, doc_id=args.doc_id or Path(args.records).stem)
+    result = translate_records(records, vmap, doc_id=args.doc_id or Path(args.records).stem)
 
     print(result.pdl_text, end="")  # stdout is pure PDL — pipeable/redirectable
     print(
