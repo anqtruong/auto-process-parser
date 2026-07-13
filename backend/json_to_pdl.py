@@ -39,7 +39,6 @@ OPERATOR = {"BELOW_MIN": "<", "ABOVE_MAX": ">"}
 # --- lexer-derived shape rules (B.2) ----------------------------------------
 LOCAL_NAME_RE = re.compile(r"^[a-z0-9.]+$")
 PROCESS_RE = re.compile(r"^[A-Z][0-9a-z]*$")
-PV_RE = re.compile(r"^[A-Z][0-9a-z.]*$")
 
 
 class MapValidationError(ValueError):
@@ -100,10 +99,6 @@ class VariableMap:
             if not isinstance(local, str) or not LOCAL_NAME_RE.match(local):
                 raise MapValidationError(
                     f"local name {local!r} for {key!r} must match {LOCAL_NAME_RE.pattern}"
-                )
-            if not PV_RE.match(f"{process}.{local}"):
-                raise MapValidationError(
-                    f"assembled PV {process}.{local} is not a valid PV token"
                 )
             if local in seen:
                 raise MapValidationError(
@@ -208,14 +203,6 @@ def _find_missing(rec: dict) -> str | None:
 
 
 @dataclass
-class _Translated:
-    kind: str                      # "value" | "match"
-    comment: str
-    statements: list
-    thresholds: list               # [{"raw": ..., "emitted": ...}]
-
-
-@dataclass
 class QueueEntry:
     record_index: int
     function_name: str
@@ -278,7 +265,8 @@ def _leg(vmap: VariableMap, variable: str, cond: dict):
     return pv, op, emitted
 
 
-def _translate_record(rec: dict, vmap: VariableMap) -> _Translated:
+def _translate_record(rec: dict, vmap: VariableMap) -> tuple:
+    """Returns ("value" | "match", comment, statements, thresholds)."""
     # B.3 classification, in spec order — reason codes must be stable.
     missing = _find_missing(rec)
     if missing:
@@ -316,7 +304,7 @@ def _translate_record(rec: dict, vmap: VariableMap) -> _Translated:
             pv, op, num = _leg(vmap, rec.get("variable", ""), cond)
             statements.append(f"value {pv} {op} {num};")
             thresholds.append({"raw": cond.get("threshold"), "emitted": num})
-        return _Translated("value", comment, statements, thresholds)
+        return ("value", comment, statements, thresholds)
 
     # conjunctive path: one multipleMatch, one rn element per leg
     elements = []
@@ -325,7 +313,7 @@ def _translate_record(rec: dict, vmap: VariableMap) -> _Translated:
         elements.append(f"({pv} {op} {num})")
         thresholds.append({"raw": cond.get("threshold"), "emitted": num})
     statement = "multipleMatch " + " ".join(elements) + ";"
-    return _Translated("match", comment, [statement], thresholds)
+    return ("match", comment, [statement], thresholds)
 
 
 def translate(records, vmap: VariableMap, doc_id: str = "unknown") -> TranslationResult:
@@ -356,12 +344,12 @@ def translate(records, vmap: VariableMap, doc_id: str = "unknown") -> Translatio
                 reason=e.reason, detail=e.detail,
             ))
             continue
-        if isinstance(result, _Translated):
-            block = (result.comment, result.statements)
-            (value_blocks if result.kind == "value" else match_blocks).append(block)
+        if isinstance(result, tuple):
+            kind, comment, statements, thresholds = result
+            (value_blocks if kind == "value" else match_blocks).append((comment, statements))
             report.append(ReportRow(
                 record_index=idx, function_name=fn, outcome="translated",
-                statements=list(result.statements), thresholds=result.thresholds,
+                statements=list(statements), thresholds=thresholds,
             ))
         # anything else falls through uncounted — the invariant below catches it
 
