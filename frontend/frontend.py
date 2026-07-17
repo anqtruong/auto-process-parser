@@ -1,13 +1,12 @@
 import requests
 import streamlit as st
-import sys 
+import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "backend"))
 import backend
 import json_to_pdl
 
-VMAP_PATH = os.path.join(os.path.dirname(__file__), "..", "backend", "important_files", "variable_map.json") # 
-vmap = json_to_pdl.VariableMap.load(VMAP_PATH) # load vmap
+VMAP_PATH = os.path.join(os.path.dirname(__file__), "..", "backend", "important_files", "variable_map.json")
 
 if "vmap" not in st.session_state:
     st.session_state.vmap = json_to_pdl.VariableMap.load(VMAP_PATH) # Writes variable map to session state so that variables will persist streamlit runs
@@ -19,53 +18,63 @@ uploaded_file = st.file_uploader("Upload", type="pdf") #Takes in a PDF uploaded 
 if uploaded_file is not None:
     st.success("File successfully uploaded!")
 
-    file = {
-        "files": (uploaded_file.name, uploaded_file.getvalue(), "application/pdf")
-    }
+    # Streamlit reruns this whole script on every interaction, so only run MinerU + the two
+    # Claude calls when this document hasn't been processed yet — reruns reuse session state
+    if st.session_state.get("doc_name") != uploaded_file.name:
+        file = {
+            "files": (uploaded_file.name, uploaded_file.getvalue(), "application/pdf")
+        }
 
-    data = { # MinerU settings. Check API docs @ http://127.0.0.1:8000/docs with MinerU backend running for more details. This is under POST /file_parse
-        "lang_list": "ch",
-        "backend": "pipeline", #You need a GPU for hybrid-engine. Use pipeline for CPU-only. CPU only is much cheaper, and we can achieve extremely similar results thanks to our LLM normalization!
-        "effort": "medium",
-        "parse_method": "auto",
-        "formula_enable": "true",
-        "image_analysis": "true",
-        "return_md": "true",
-        "return_middle_json": "false", # True if you need raw positioning blocks
-        "return_images": "false" 
-    }
+        data = { # MinerU settings. Check API docs @ http://127.0.0.1:8000/docs with MinerU backend running for more details. This is under POST /file_parse
+            "lang_list": "ch",
+            "backend": "pipeline", #You need a GPU for hybrid-engine. Use pipeline for CPU-only. CPU only is much cheaper, and we can achieve extremely similar results thanks to our LLM normalization!
+            "effort": "medium",
+            "parse_method": "auto",
+            "formula_enable": "true",
+            "image_analysis": "true",
+            "return_md": "true",
+            "return_middle_json": "false", # True if you need raw positioning blocks
+            "return_images": "false"
+        }
 
-    try:
-        with st.spinner("Parsing document... this may take a minute."): # Loading animation :D
-            response = requests.post("http://127.0.0.1:8000/file_parse", files=file, data=data) # Post request to MinerU API. File gets passed to MinerU, along with settings for extraction.
-        response.raise_for_status() # Check for HTTP error
+        try:
+            with st.spinner("Parsing document... this may take a minute."): # Loading animation :D
+                response = requests.post("http://127.0.0.1:8000/file_parse", files=file, data=data) # Post request to MinerU API. File gets passed to MinerU, along with settings for extraction.
+            response.raise_for_status() # Check for HTTP error
 
-        result = response.json() # Parses HTTP response body into a dict
-        output = list(result["results"].values())[0] # Only one file uploaded, so grab the first (only) result
-        markdown = output.get("md_content") # pulls md_content field from the output variable. If the field is missing, will return None
+            result = response.json() # Parses HTTP response body into a dict
+            output = list(result["results"].values())[0] # Only one file uploaded, so grab the first (only) result
+            markdown = output.get("md_content") # pulls md_content field from the output variable. If the field is missing, will return None
 
-        if markdown: # If markdown is not None
-            with st.spinner("Normalizing text..."):
-                normalized = backend.normalize_file(markdown)
-            with st.spinner("Extracting rules..."):
-                extracted_rules = backend.extract_rules(normalized)
+            if markdown: # If markdown is not None
+                with st.spinner("Normalizing text..."):
+                    normalized = backend.normalize_file(markdown)
+                with st.spinner("Extracting rules..."):
+                    extracted_rules = backend.extract_rules(normalized)
 
-            st.success("Done!")
+                st.session_state.records = extracted_rules
+                st.session_state.doc_name = uploaded_file.name
 
-            if not extracted_rules:
-                st.warning("No extractable setpoints found in this document.")
-            else:
-                for record in extracted_rules:
-                    with st.expander(record.source_text):
-                        st.code(record.model_dump_json(indent=2, exclude={"source_text"}), language="json")           
+        except requests.exceptions.RequestException as e:
+            st.error(f"API request failed: {e}")
 
-            result = json_to_pdl.translate_records(extracted_rules, st.session_state.vmap, doc_id=uploaded_file.name)
+    # Display + translation run from session state on every rerun — translate_records is
+    # pure and instant (no LLM calls), so retranslating the full list each time is fine
+    if st.session_state.get("doc_name") == uploaded_file.name:
+        records = st.session_state.records
+        st.success("Done!")
 
-            st.caption(f"{result.translated_count} translated / {result.queued_count} queued")
-            st.code(result.pdl_text)
+        if not records:
+            st.warning("No extractable setpoints found in this document.")
+        else:
+            for record in records:
+                with st.expander(record.source_text):
+                    st.code(record.model_dump_json(indent=2, exclude={"source_text"}), language="json")
 
-    except requests.exceptions.RequestException as e:
-        st.error(f"API request failed: {e}")
+        result = json_to_pdl.translate_records(records, st.session_state.vmap, doc_id=uploaded_file.name)
+
+        st.caption(f"{result.translated_count} translated / {result.queued_count} queued")
+        st.code(result.pdl_text)
 
 else:
     st.error("No file uploaded yet.")
