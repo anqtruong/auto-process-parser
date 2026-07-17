@@ -74,6 +74,31 @@ if uploaded_file is not None:
         result = json_to_pdl.translate_records(records, st.session_state.vmap, doc_id=uploaded_file.name)
 
         st.caption(f"{result.translated_count} translated / {result.queued_count} queued")
+
+        # Human-in-the-loop mapping panel: derived fresh from the queue every rerun, so it
+        # always matches reality and dedupes variables shared by several queue rows
+        unmapped = {r.variable: r.suggested_pv
+                    for r in result.queue if r.reason_code == "UNMAPPED_VARIABLE"}
+
+        if unmapped:
+            with st.form("variable_map_form"):
+                st.subheader("Unmapped variables")
+                raw = {var: st.text_input(var, value=pv, key=f"pv_{var}")
+                       for var, pv in unmapped.items()}
+                submitted = st.form_submit_button("Apply mappings")
+            if submitted:
+                edits = {var: name.strip() for var, name in raw.items() if name.strip()} # blank = skip: user can map a subset, the rest stay queued
+                if edits:
+                    try:
+                        # rebuild via from_dict so existing validation (name format + PV collisions) runs; never mutate in place
+                        st.session_state.vmap = json_to_pdl.VariableMap.from_dict({
+                            "process": st.session_state.vmap.process,
+                            "variables": {**st.session_state.vmap.variables, **edits},
+                        })
+                        st.rerun() # translation above already ran with the old map this pass — restart so no stale frame renders
+                    except json_to_pdl.MapValidationError as e:
+                        st.error(str(e)) # no rerun: keep the error visible and the inputs intact
+
         st.code(result.pdl_text)
 
 else:
