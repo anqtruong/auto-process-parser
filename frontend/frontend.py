@@ -4,6 +4,13 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "backend"))
 import backend
+import json_to_pdl
+
+VMAP_PATH = os.path.join(os.path.dirname(__file__), "..", "backend", "important_files", "variable_map.json") # 
+vmap = json_to_pdl.VariableMap.load(VMAP_PATH) # load vmap
+
+if "vmap" not in st.session_state:
+    st.session_state.vmap = json_to_pdl.VariableMap.load(VMAP_PATH) # Writes variable map to session state so that variables will persist streamlit runs
 
 st.title("Auto Process Parser")
 st.header("Please submit your document (PDF).")
@@ -50,7 +57,12 @@ if uploaded_file is not None:
             else:
                 for record in extracted_rules:
                     with st.expander(record.source_text):
-                        st.code(record.model_dump_json(indent=2, exclude={"source_text"}), language="json")             
+                        st.code(record.model_dump_json(indent=2, exclude={"source_text"}), language="json")           
+
+            result = json_to_pdl.translate_records(extracted_rules, st.session_state.vmap, doc_id=uploaded_file.name)
+
+            st.caption(f"{result.translated_count} translated / {result.queued_count} queued")
+            st.code(result.pdl_text)
 
     except requests.exceptions.RequestException as e:
         st.error(f"API request failed: {e}")
