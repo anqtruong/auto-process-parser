@@ -2,9 +2,17 @@ import streamlit as st
 import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "backend"))
+import json_to_pdl
 from important_files.json_schema import setpoint_record, condition, direction, threshold_type
 
-# Frontend tester (no API calls)
+# Frontend tester (no API calls) — skips MinerU + Claude by using hardcoded records,
+# then mirrors frontend.py's display block exactly. Keep the display section in sync
+# with frontend.py when its UI changes.
+
+VMAP_PATH = os.path.join(os.path.dirname(__file__), "..", "backend", "important_files", "variable_map.json")
+
+if "vmap" not in st.session_state:
+    st.session_state.vmap = json_to_pdl.VariableMap.load(VMAP_PATH) # Writes variable map to session state so that variables will persist streamlit runs
 
 # --- Testbed data ---
 extracted_rules = [
@@ -61,41 +69,59 @@ extracted_rules = [
 
 # --- Display (mirrors frontend.py) ---
 st.title("Auto Process Parser — Frontend Testbed")
-st.header("Please submit your document (PDF).")
 st.info("Using hardcoded test data. No API calls made.")
 
-uploaded_file = st.file_uploader("Upload", type="pdf") 
-if uploaded_file is not None:
-    st.success("File successfully uploaded!")
+records = extracted_rules
 
-if not extracted_rules:
+if not records:
     st.warning("No extractable setpoints found in this document.")
 else:
+    with st.expander("Extracted records (JSON)"):
+        for record in records:
+            with st.expander(record.source_text):
+                st.code(record.model_dump_json(indent=2, exclude={"source_text"}), language="json")
 
+result = json_to_pdl.translate_records(records, st.session_state.vmap, doc_id="testbed")
 
-    """
-     for record in extracted_rules:
-        with st.expander(record.source_text):
-            st.code(record.model_dump_json(indent=2, exclude={"source_text"}), language="json")             
-    """
+left, right = st.columns(2)
 
+with left:
+    st.subheader(f"Translated ({result.translated_count})")
+    for row in result.report:
+        if row.outcome == "translated":
+            with st.expander(row.function_name):
+                st.code("\n".join(row.statements))
+                st.caption(row.source_text)
 
+with right:
+    st.subheader(f"Queued ({result.queued_count})")
+    for row in result.queue:
+        with st.expander(f"{row.function_name} — {row.reason_code}"):
+            st.write(row.explanation)
+            st.caption(row.source_text)
 
-    """
-    for i, record in enumerate(extracted_rules):
-        with st.expander(record.source_text):
-            edited = st.text_area(
-                "Edit JSON",
-                value=record.model_dump_json(indent=2, exclude={"source_text"}),
-                height=200,
-                key=f"editor_{i}",
-            )
-            if st.button("Validate", key=f"validate_{i}"):
+    # Human-in-the-loop mapping panel: derived fresh from the queue every rerun, so it
+    # always matches reality and dedupes variables shared by several queue rows
+    unmapped = {r.variable: r.suggested_pv
+                for r in result.queue if r.reason_code == "UNMAPPED_VARIABLE"}
+
+    if unmapped:
+        with st.form("variable_map_form"):
+            st.subheader("Unmapped variables")
+            raw = {var: st.text_input(var, value=pv, key=f"pv_{var}")
+                   for var, pv in unmapped.items()}
+            submitted = st.form_submit_button("Apply mappings")
+        if submitted:
+            edits = {var: name.strip() for var, name in raw.items() if name.strip()} # blank = skip: user can map a subset, the rest stay queued
+            if edits:
                 try:
-                    import json
-                    parsed = json.loads(edited)
-                    st.success("Valid JSON")
-                    st.json(parsed)
-                except json.JSONDecodeError as e:
-                    st.error(f"Invalid JSON: {e}")
-    """ 
+                    # rebuild via from_dict so existing validation (name format + PV collisions) runs; never mutate in place
+                    st.session_state.vmap = json_to_pdl.VariableMap.from_dict({
+                        "process": st.session_state.vmap.process,
+                        "variables": {**st.session_state.vmap.variables, **edits},
+                    })
+                    st.rerun() # translation above already ran with the old map this pass — restart so no stale frame renders
+                except json_to_pdl.MapValidationError as e:
+                    st.error(str(e)) # no rerun: keep the error visible and the inputs intact
+
+st.code(result.pdl_text)
