@@ -74,7 +74,7 @@ if uploaded_file is not None:
 
         result = json_to_pdl.translate_records(records, st.session_state.vmap, doc_id=uploaded_file.name)
 
-        left, right = st.columns(2)
+        left, right = st.columns(2, border=True)
 
         with left:
             st.subheader(f"Translated ({result.translated_count})")
