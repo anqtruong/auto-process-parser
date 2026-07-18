@@ -86,6 +86,13 @@ else:
 
 result = json_to_pdl.translate_records(records, st.session_state.vmap, doc_id="testbed")
 
+if "skipped" not in st.session_state:
+    st.session_state.skipped = set() # record_index of rows the reviewer deferred — session-only bookkeeping
+# intersect with the live queue: derived views, never stored — a stale index is
+# harmlessly ignored rather than resurrecting a ghost row
+queued_rows = [r for r in result.queue if r.record_index not in st.session_state.skipped]
+skipped_rows = [r for r in result.queue if r.record_index in st.session_state.skipped]
+
 left, right = st.columns(2, border=True)
 
 with left:
@@ -97,8 +104,8 @@ with left:
                 st.caption(row.source_text)
 
 with right:
-    st.subheader(f"Queued ({result.queued_count})")
-    for row in result.queue:
+    st.subheader(f"Queued ({len(queued_rows)})")
+    for row in queued_rows:
         if row.reason_code == json_to_pdl.UNMAPPED_VARIABLE:
             continue # these rows are represented by the mapping panel below — showing them here too duplicates, and amending the record can't fix a map problem
         with st.expander(f"{row.function_name} — {row.reason_code}"):
@@ -122,6 +129,9 @@ with right:
                         st.rerun() # translation above already ran with the old record this pass
                     except ValidationError as e:
                         st.error(str(e)) # no rerun: error stays visible, text stays editable
+            if st.button("Skip for now", key=f"skip_{row.record_index}"):
+                st.session_state.skipped.add(row.record_index)
+                st.rerun() # this frame already drew the row as active
 
     # Human-in-the-loop mapping panel: derived fresh from the queue every rerun, so it
     # always matches reality and dedupes variables shared by several queue rows
@@ -152,4 +162,24 @@ with right:
                 except json_to_pdl.MapValidationError as e:
                     st.error(str(e)) # no rerun: keep the error visible and the inputs intact
 
+    if skipped_rows:
+        with st.expander(f"Skipped ({len(skipped_rows)})"):
+            for row in skipped_rows:
+                st.markdown(f"**{row.function_name}** — {row.reason_code}")
+                st.caption(row.source_text)
+                # skipped rows are inert (no amend form): unskip first, then amend —
+                # one path for mutations
+                if st.button("Unskip", key=f"unskip_{row.record_index}"):
+                    st.session_state.skipped.discard(row.record_index)
+                    st.rerun()
+
 st.code(result.pdl_text)
+ready = not queued_rows # every queued record resolved or deliberately skipped
+st.download_button(
+    "Download PDL",
+    data=result.pdl_text,
+    file_name="testbed.pdl.txt",
+    disabled=not ready,
+)
+if not ready:
+    st.caption(f"{len(queued_rows)} queued record(s) must be resolved or skipped before download.")
