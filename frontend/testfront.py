@@ -99,6 +99,8 @@ with left:
 with right:
     st.subheader(f"Queued ({result.queued_count})")
     for row in result.queue:
+        if row.reason_code == json_to_pdl.UNMAPPED_VARIABLE:
+            continue # these rows are represented by the mapping panel below — showing them here too duplicates, and amending the record can't fix a map problem
         with st.expander(f"{row.function_name} — {row.reason_code}"):
             st.write(row.explanation)
             st.caption(row.source_text)
