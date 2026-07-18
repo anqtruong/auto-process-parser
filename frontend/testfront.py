@@ -105,9 +105,8 @@ with right:
             st.write(row.explanation)
             st.caption(row.source_text)
             if row.reason_code == json_to_pdl.FORMULA_THRESHOLD:
-                st.caption("Formula thresholds can't translate until the grammar "
-                           "supports them. Rewriting one as a constant changes its "
-                           "meaning — that judgment stays with you.")
+                st.caption("REASON: Formula thresholds can't translate until the grammar "
+                           "supports them.")
             with st.form(f"amend_form_{row.record_index}"):
                 edited = st.text_area(
                     "Amend record JSON",
@@ -126,14 +125,19 @@ with right:
 
     # Human-in-the-loop mapping panel: derived fresh from the queue every rerun, so it
     # always matches reality and dedupes variables shared by several queue rows
-    unmapped = {r.variable: r.suggested_pv
-                for r in result.queue if r.reason_code == "UNMAPPED_VARIABLE"}
+    unmapped = {}
+    for r in result.queue:
+        if r.reason_code == json_to_pdl.UNMAPPED_VARIABLE:
+            entry = unmapped.setdefault(r.variable, {"pv": r.suggested_pv, "fns": []})
+            entry["fns"].append(r.function_name)
 
     if unmapped:
         with st.form("variable_map_form"):
             st.subheader("Unmapped variables")
-            raw = {var: st.text_input(var, value=pv, key=f"pv_{var}")
-                   for var, pv in unmapped.items()}
+            raw = {}
+            for var, entry in unmapped.items():
+                raw[var] = st.text_input(var, value=entry["pv"], key=f"pv_{var}")
+                st.caption("referenced by: " + ", ".join(entry["fns"]))
             submitted = st.form_submit_button("Apply mappings")
         if submitted:
             edits = {var: name.strip() for var, name in raw.items() if name.strip()} # blank = skip: user can map a subset, the rest stay queued
