@@ -8,7 +8,8 @@ from pydantic import ValidationError
 
 # Frontend tester (no API calls) — skips MinerU + Claude by using hardcoded records.
 # UI iteration happens HERE first; frontend.py's display block gets synced from this
-# file once the UI is approved (identical through commit 096b4f6).
+# file once the UI is approved. Last full sync: 2026-07-18 (differences: doc_id and
+# download file_name derive from the uploaded file there, hardcoded "testbed" here).
 
 VMAP_PATH = os.path.join(os.path.dirname(__file__), "..", "backend", "important_files", "variable_map.json")
 
