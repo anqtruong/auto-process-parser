@@ -128,7 +128,7 @@ with right:
     unmapped = {}
     for r in result.queue:
         if r.reason_code == json_to_pdl.UNMAPPED_VARIABLE:
-            entry = unmapped.setdefault(r.variable, {"pv": r.suggested_pv, "fns": []})
+            entry = unmapped.setdefault(r.unmapped_variable, {"pv": r.suggested_pv, "fns": []}) # key on the name that actually failed lookup — on conjunctive records r.variable is the summary name, not the unmapped leg
             entry["fns"].append(r.function_name)
 
     if unmapped:
