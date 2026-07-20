@@ -11,10 +11,11 @@ from pydantic import ValidationError
 # file once the UI is approved. Last full sync: 2026-07-18 (differences: doc_id and
 # download file_name derive from the uploaded file there, hardcoded "testbed" here).
 
-VMAP_PATH = os.path.join(os.path.dirname(__file__), "..", "backend", "important_files", "variable_map.json")
+# ponytail: hardcoded P1, empty map — per-plant profiles/naming deferred
+EMPTY_VMAP = json_to_pdl.VariableMap.from_dict({"process": "P1", "variables": {}})
 
 if "vmap" not in st.session_state:
-    st.session_state.vmap = json_to_pdl.VariableMap.load(VMAP_PATH) # Writes variable map to session state so that variables will persist streamlit runs
+    st.session_state.vmap = EMPTY_VMAP # every variable starts unmapped; reviewer maps them in-session
 
 # --- Testbed data ---
 extracted_rules = [

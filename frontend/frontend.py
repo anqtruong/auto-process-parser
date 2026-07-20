@@ -8,10 +8,11 @@ import json_to_pdl
 from important_files.json_schema import setpoint_record
 from pydantic import ValidationError
 
-VMAP_PATH = os.path.join(os.path.dirname(__file__), "..", "backend", "important_files", "variable_map.json")
+# ponytail: hardcoded P1, empty map — per-plant profiles/naming deferred
+EMPTY_VMAP = json_to_pdl.VariableMap.from_dict({"process": "P1", "variables": {}})
 
 if "vmap" not in st.session_state:
-    st.session_state.vmap = json_to_pdl.VariableMap.load(VMAP_PATH) # Writes variable map to session state so that variables will persist streamlit runs
+    st.session_state.vmap = EMPTY_VMAP # every variable starts unmapped; reviewer maps them in-session
 
 st.title("Auto Process Parser")
 st.header("Please submit your document (PDF).")
@@ -59,6 +60,7 @@ if uploaded_file is not None:
                 # new document, fresh review: stale skips (record_index collides across
                 # docs) and stale amend/panel widget text must not bleed into this one
                 st.session_state.skipped = set()
+                st.session_state.vmap = EMPTY_VMAP # empty map per document — mappings never leak across docs
                 for k in [k for k in st.session_state if k.startswith(("amend_", "pv_"))]:
                     del st.session_state[k]
 
