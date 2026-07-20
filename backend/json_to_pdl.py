@@ -25,25 +25,29 @@ from pathlib import Path
 TRANSLATOR_VERSION = "0.2.0"
 
 # --- reason codes: closed set (B.7) ----------------------------------------
-MISSING_FIELD = "MISSING_FIELD"
-EMPTY_CONDITIONS = "EMPTY_CONDITIONS"
-FORMULA_THRESHOLD = "FORMULA_THRESHOLD"
-MALFORMED_SHAPE = "MALFORMED_SHAPE"
-UNPARSEABLE_THRESHOLD = "UNPARSEABLE_THRESHOLD"
-NEGATIVE_THRESHOLD = "NEGATIVE_THRESHOLD"
-UNMAPPED_VARIABLE = "UNMAPPED_VARIABLE"
+# These are the "reasons" as to why the rule was passed to the queue for human amendment rather than being translated
+MISSING_FIELD = "MISSING_FIELD" # Field with "MISSING_*". This means the record was incomplete
+EMPTY_CONDITIONS = "EMPTY_CONDITIONS" # The record had no conditions. Nothing to translate
+FORMULA_THRESHOLD = "FORMULA_THRESHOLD" # threshold_type in the JSON object was FORMULA. PDL's value rule only takes a constant, so it can't be expressed
+MALFORMED_SHAPE = "MALFORMED_SHAPE" # the record's structure matches no shape the translator knows how to interpret
+UNPARSEABLE_THRESHOLD = "UNPARSEABLE_THRESHOLD" # Claimed NUMERIC but the string isn't a single plain number (tolerance, range, time qualifier)
+NEGATIVE_THRESHOLD = "NEGATIVE_THRESHOLD" # the number is negative, and the current grammar has no way to put a minus sign in the number position
+UNMAPPED_VARIABLE = "UNMAPPED_VARIABLE" # the variable name isn't in variable_map.json and needs to be populated; the entry ships a suggested_pv so fixing it is one paste!
 
 # --- direction -> operator (B.4): strict, never defaulted ------------------
 OPERATOR = {"BELOW_MIN": "<", "ABOVE_MAX": ">"}
 
 # --- lexer-derived shape rules (B.2) ----------------------------------------
-LOCAL_NAME_RE = re.compile(r"^[a-z0-9.]+$")
-PROCESS_RE = re.compile(r"^[A-Z][0-9a-z]*$")
+# Process Value (PV) Rule from lexerRules.g4 for RegEx
+# PV: ('A'..'Z') ('0'..'9' | 'a'..'z' | '.' )*;
+
+# re.compile essentially converts the text-based rule (ex: "^[a-z0-9.]+$") into an object of your RegEx pattern so the rule doesn't have to be re-derived on every call!
+LOCAL_NAME_RE = re.compile(r"^[a-z0-9.]+$") # Supplies the mandatory initial capital for variable_map.json---validates the "process" field
+PROCESS_RE = re.compile(r"^[A-Z][0-9a-z]*$") # Validates that every value must be all lowercase/digits/dots (NO CAPS)
 
 
 class MapValidationError(ValueError):
     """variable_map.json is unusable; abort the run (B.2)."""
-
 
 class UnmappedVariable(KeyError):
     def __init__(self, variable: str):
@@ -51,27 +55,25 @@ class UnmappedVariable(KeyError):
         self.variable = variable
         self.suggested = suggest_pv_name(variable)
 
-
 class UnparseableThreshold(ValueError):
     pass
-
 
 class NegativeThreshold(ValueError):
     pass
 
-
 class AccountingError(RuntimeError):
     """translated + queued != records — a record vanished (B.0)."""
-
 
 class _RecordError(Exception):
     """Internal: whole-record rejection into the review queue."""
 
-    def __init__(self, reason: str, detail: str, suggested_pv: str | None = None):
+    def __init__(self, reason: str, detail: str, suggested_pv: str | None = None,
+                 unmapped_variable: str | None = None):
         super().__init__(detail)
         self.reason = reason
         self.detail = detail
         self.suggested_pv = suggested_pv
+        self.unmapped_variable = unmapped_variable
 
 
 # --- variable map (B.2) ------------------------------------------------------
@@ -216,6 +218,10 @@ class ReportRow:
     reason_code: str | None = None      # closed set (B.7); null when translated
     explanation: str | None = None      # human-readable; null when translated
     suggested_pv: str | None = None     # set only for UNMAPPED_VARIABLE
+    unmapped_variable: str | None = None  # set only for UNMAPPED_VARIABLE: the exact name
+                                          # that failed lookup — equals `variable` on the
+                                          # value path, but may be a leg's sub_variable on
+                                          # the conjunctive path; map fixes key on THIS
 
 
 @dataclass
@@ -237,27 +243,28 @@ def _translate_condition(vmap: VariableMap, variable: str, cond: dict):
     op = OPERATOR.get(direction)
     if op is None:
         raise _RecordError(
-            MALFORMED_SHAPE, f"unrecognized direction {direction!r}"
+            MALFORMED_SHAPE, f"ERROR: unrecognized direction {direction!r}"
         )
     try:
         pv = vmap.to_pv(variable)
     except UnmappedVariable as e:
         raise _RecordError(
             UNMAPPED_VARIABLE,
-            f"variable {e.variable!r} is not in variable_map.json",
+            f"ERROR: variable {e.variable!r} is not in variable_map.json",
             suggested_pv=e.suggested,
+            unmapped_variable=e.variable,
         )
     raw = cond.get("threshold", "")
     try:
         emitted = normalize_threshold(raw)
     except UnparseableThreshold:
         raise _RecordError(
-            UNPARSEABLE_THRESHOLD, f"threshold {raw!r} is not a single plain number"
+            UNPARSEABLE_THRESHOLD, f"ERROR: threshold {raw!r} is not a single plain number"
         )
     except NegativeThreshold:
         raise _RecordError(
             NEGATIVE_THRESHOLD,
-            f"threshold {raw!r} is negative; the grammar cannot represent it",
+            f"ERROR: threshold {raw!r} is negative; the grammar cannot represent it",
         )
     return pv, op, emitted
 
@@ -267,24 +274,24 @@ def _translate_record(rec: dict, vmap: VariableMap) -> tuple:
     # B.3 classification, in spec order — reason codes must be stable.
     missing = _find_missing_sentinel(rec)
     if missing:
-        raise _RecordError(MISSING_FIELD, f"field {missing} carries a MISSING_ sentinel")
+        raise _RecordError(MISSING_FIELD, f"ERROR: field {missing} carries a MISSING_ sentinel")
 
     conditions = rec.get("conditions") or []
     if not conditions:
-        raise _RecordError(EMPTY_CONDITIONS, "record has no conditions")
+        raise _RecordError(EMPTY_CONDITIONS, "ERROR: record has no conditions")
 
     for i, cond in enumerate(conditions):
         if cond.get("threshold_type") == "FORMULA":
             raise _RecordError(
                 FORMULA_THRESHOLD,
-                f"conditions[{i}] threshold {cond.get('threshold')!r} is a FORMULA",
+                f"ERROR: conditions[{i}] threshold {cond.get('threshold')!r} is a FORMULA",
             )
 
     subs = [c.get("sub_variable") for c in conditions]
     named = [s is not None for s in subs]
     if any(named) and not all(named):
         raise _RecordError(
-            MALFORMED_SHAPE, "legs mix null and named sub_variable"
+            MALFORMED_SHAPE, "ERROR: legs mix null and named sub_variable"
         )
 
     units = ", ".join(_sanitize_comment(c.get("units", "")) for c in conditions)
@@ -335,6 +342,7 @@ def translate_records(records, vmap: VariableMap, doc_id: str = "unknown") -> Tr
                 **row, outcome="queued",
                 reason_code=e.reason, explanation=e.detail,
                 suggested_pv=e.suggested_pv,
+                unmapped_variable=e.unmapped_variable,
             ))
             continue
         if isinstance(result, tuple):
@@ -375,7 +383,7 @@ def translate_records(records, vmap: VariableMap, doc_id: str = "unknown") -> Tr
 
 
 # --- CLI: inspect I/O by hand (PDL -> stdout, report/queue -> stderr) ---------
-
+# This is a visual test in the CLI
 def _main(argv=None):
     import argparse
     import sys

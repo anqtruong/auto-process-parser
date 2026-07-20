@@ -4,6 +4,8 @@ Golden tests are the eight worked examples from the extract_rules system
 prompt in backend.py — the canonical extractor input/output pairs.
 """
 
+# TESTS WRITTEN BY CLAUDE --- Tests were taken from the examples in extract_rules system prompt in backend.py
+
 import pytest
 
 import json_to_pdl as j2p
@@ -225,6 +227,23 @@ def test_unmapped_variable_suggests_pv():
     entry = result.queue[0]
     assert entry.reason_code == j2p.UNMAPPED_VARIABLE
     assert entry.suggested_pv == "reactorbuildingsprayflow"
+    assert entry.unmapped_variable == "Reactor Building Spray Flow"
+
+
+def test_conjunctive_unmapped_leg_names_the_leg():
+    # the record's top-level variable is a summary name; the failed lookup is the
+    # leg's sub_variable — the queue row must name the leg, or a map fix keyed on
+    # row.variable would write the leg's suggested PV under the summary name
+    records = [rec("Flow Mismatch", "f", [
+        cond("ABOVE_MAX", "38.0", sub_variable="Steam Flow"),
+        cond("BELOW_MIN", "22", sub_variable="Condensate Flow"),
+    ])]
+    result = translate_records(records, VMAP)
+    entry = result.queue[0]
+    assert entry.reason_code == j2p.UNMAPPED_VARIABLE
+    assert entry.variable == "Flow Mismatch"
+    assert entry.unmapped_variable == "Condensate Flow"
+    assert entry.suggested_pv == "condensateflow"
 
 
 # --- variable map validation (B.2) --------------------------------------------
