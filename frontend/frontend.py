@@ -169,8 +169,8 @@ if uploaded_file is not None:
                         if st.button("Unskip", key=f"unskip_{row.record_index}"):
                             st.session_state.skipped.discard(row.record_index)
                             st.rerun()
-
-        st.code(result.pdl_text)
+        with st.expander("PDL Output Preview"):
+            st.code(result.pdl_text)
         ready = not queued_rows # every queued record resolved or deliberately skipped
         st.download_button(
             "Download PDL",

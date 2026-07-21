@@ -175,7 +175,8 @@ with right:
                     st.session_state.skipped.discard(row.record_index)
                     st.rerun()
 
-st.code(result.pdl_text)
+with st.expander("PDL output"):
+    st.code(result.pdl_text)
 ready = not queued_rows # every queued record resolved or deliberately skipped
 st.download_button(
     "Download PDL",
