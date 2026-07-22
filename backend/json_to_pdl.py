@@ -243,28 +243,27 @@ def _translate_condition(vmap: VariableMap, variable: str, cond: dict):
     op = OPERATOR.get(direction)
     if op is None:
         raise _RecordError(
-            MALFORMED_SHAPE, f"ERROR: unrecognized direction {direction!r}"
+            MALFORMED_SHAPE, f"NEEDS REVIEW: unrecognized direction {direction!r}"
         )
     try:
         pv = vmap.to_pv(variable)
     except UnmappedVariable as e:
         raise _RecordError(
             UNMAPPED_VARIABLE,
-            f"ERROR: variable {e.variable!r} is not in variable_map.json",
+            f"NEEDS REVIEW: variable {e.variable!r} is not in variable_map.json",
             suggested_pv=e.suggested,
-            unmapped_variable=e.variable,
         )
     raw = cond.get("threshold", "")
     try:
         emitted = normalize_threshold(raw)
     except UnparseableThreshold:
         raise _RecordError(
-            UNPARSEABLE_THRESHOLD, f"ERROR: threshold {raw!r} is not a single plain number"
+            UNPARSEABLE_THRESHOLD, f"NEEDS REVIEW: threshold {raw!r} is not a single plain number"
         )
     except NegativeThreshold:
         raise _RecordError(
             NEGATIVE_THRESHOLD,
-            f"ERROR: threshold {raw!r} is negative; the grammar cannot represent it",
+            f"NEEDS REVIEW: threshold {raw!r} is negative; the grammar cannot represent it",
         )
     return pv, op, emitted
 
@@ -274,24 +273,24 @@ def _translate_record(rec: dict, vmap: VariableMap) -> tuple:
     # B.3 classification, in spec order — reason codes must be stable.
     missing = _find_missing_sentinel(rec)
     if missing:
-        raise _RecordError(MISSING_FIELD, f"ERROR: field {missing} carries a MISSING_ sentinel")
+        raise _RecordError(MISSING_FIELD, f"NEEDS REVIEW: field {missing} carries a MISSING_ sentinel")
 
     conditions = rec.get("conditions") or []
     if not conditions:
-        raise _RecordError(EMPTY_CONDITIONS, "ERROR: record has no conditions")
+        raise _RecordError(EMPTY_CONDITIONS, "NEEDS REVIEW: record has no conditions")
 
     for i, cond in enumerate(conditions):
         if cond.get("threshold_type") == "FORMULA":
             raise _RecordError(
                 FORMULA_THRESHOLD,
-                f"ERROR: conditions[{i}] threshold {cond.get('threshold')!r} is a FORMULA",
+                f"NEEDS REVIEW: conditions[{i}] threshold {cond.get('threshold')!r} is a FORMULA",
             )
 
     subs = [c.get("sub_variable") for c in conditions]
     named = [s is not None for s in subs]
     if any(named) and not all(named):
         raise _RecordError(
-            MALFORMED_SHAPE, "ERROR: legs mix null and named sub_variable"
+            MALFORMED_SHAPE, "NEEDS REVIEW: legs mix null and named sub_variable"
         )
 
     units = ", ".join(_sanitize_comment(c.get("units", "")) for c in conditions)
