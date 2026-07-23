@@ -141,17 +141,6 @@ def parse_threshold(raw: str) -> Decimal:
 
 
 def format_number(d: Decimal, verbatim: str | None = None) -> str:
-    """Layer 2 (THE DIEGO SEAM, B.5): spell a number so today's grammar
-    accepts it. Current policy, pending the Section A grammar decision:
-
-    - negative numbers are unrepresentable (no minus in the number position)
-    - integers need a trailing dot (INT is declared before DOUBLE, so a bare
-      integer lexes as INT and the `value` rule rejects it)
-    - a bare leading dot needs a zero (DOUBLE requires a leading INT)
-
-    `verbatim` carries the cleaned original spelling for digit preservation;
-    None means the caller wants the Decimal rendered (sci-notation expansion).
-    """
     if d < 0:
         raise NegativeThreshold(verbatim or str(d))
     s = verbatim if verbatim is not None else format(d, "f")
@@ -252,6 +241,7 @@ def _translate_condition(vmap: VariableMap, variable: str, cond: dict):
             UNMAPPED_VARIABLE,
             f"NEEDS REVIEW: variable {e.variable!r} is not in variable_map.json",
             suggested_pv=e.suggested,
+            unmapped_variable=e.variable,
         )
     raw = cond.get("threshold", "")
     try:
