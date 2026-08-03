@@ -40,7 +40,7 @@ source .venv/bin/activate
 mineru-api --host 0.0.0.0 --port 8000
 ```
 
-**2. Start the Streamlit frontend**
+**2. Start the Streamlit frontend (make sure the venv from step 1 is activated)**
 
 ```bash
 cd frontend
