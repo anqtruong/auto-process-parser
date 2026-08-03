@@ -12,7 +12,10 @@ flowchart LR
     A([PDF Upload]) -->|HTTP POST| B[MinerU API\nlocal server]
     B -->|Markdown| C[Claude Haiku\nNormalization]
     C -->|Normalized text| D[Claude Sonnet\nRule Extraction]
-    D -->|Structured JSON| E([User Review\nStreamlit Frontend])
+    D -->|Structured JSON| E[Deterministic Translator\njson_to_pdl.py]
+    E -->|PDL + review queue| F([User Review\nStreamlit Frontend])
+    F -->|Amend & re-translate| E
+    F -->|Approved| G([PDL .txt Output])
 ```
 
 ## Pipeline Architecture
@@ -23,18 +26,40 @@ flowchart LR
 
 **Frontend:**
 - Streamlit
+- requests (calls the MinerU API)
 
 **Backend:**
 - MinerU (PDF parsing / OCR)
 - Claude API (text normalization + rule extraction)
-- Pydantic (output schema validation)
+- Pydantic (extraction schema validation)
+- python-dotenv (API-key loading)
+- Deterministic PDL translator (`json_to_pdl.py`) — emits PDL conforming to the ANTLR `MonitoringNeeds` grammar
 
 ## Prerequisites
+
+Requires Python 3.12.
 
 Create a `.env` file in the `backend/` directory with your Anthropic API key:
 
 ```
 ANTHROPIC_API_KEY=your_key_here
+```
+
+## Installation
+
+From `backend/`, create the virtual environment and install the dependencies:
+
+```bash
+cd backend
+python3.12 -m venv .venv
+source .venv/bin/activate
+pip install \
+  streamlit==1.58.0 \
+  requests==2.34.2 \
+  anthropic==0.113.0 \
+  pydantic==2.13.4 \
+  python-dotenv==1.2.2 \
+  mineru==3.4.0
 ```
 
 ## How to Use
