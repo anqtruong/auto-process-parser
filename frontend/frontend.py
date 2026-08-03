@@ -94,41 +94,51 @@ if uploaded_file is not None:
 
         with left:
             st.subheader(f"Translated ({result.translated_count})")
-            for row in result.report:
-                if row.outcome == "translated":
-                    with st.expander(row.function_name):
+            with st.expander("Rules", expanded=True):
+                translated_rows = [r for r in result.report if r.outcome == "translated"]
+                if not translated_rows:
+                    st.caption("No rules translated yet.")
+                for row in translated_rows:
+                    # nested expanders aren't allowed; a bordered container gives each row its box
+                    with st.container(border=True):
+                        st.markdown(f"**{row.function_name}**")
                         st.code("\n".join(row.statements))
                         st.caption(row.source_text)
 
         with right:
             st.subheader(f"Queued ({len(queued_rows)})")
-            for row in queued_rows:
-                if row.reason_code == json_to_pdl.UNMAPPED_VARIABLE:
-                    continue # these rows are represented by the mapping panel below — showing them here too duplicates, and amending the record can't fix a map problem
-                with st.expander(f"{row.function_name} — {row.reason_code}"):
-                    st.write(row.explanation)
-                    st.caption(row.source_text)
-                    if row.reason_code == json_to_pdl.FORMULA_THRESHOLD:
-                        st.caption("REASON: Formula thresholds can't translate until the grammar "
-                                   "supports them.")
-                    with st.form(f"amend_form_{row.record_index}"):
-                        edited = st.text_area(
-                            "Amend record JSON",
-                            value=records[row.record_index].model_dump_json(indent=2),
-                            height=240,
-                            key=f"amend_{row.record_index}",
-                        )
-                        if st.form_submit_button("Apply amendment"):
-                            try:
-                                # schema-validate BEFORE storing: a non-conforming record in session
-                                # state would crash translate_records on every rerun (bricked session)
-                                st.session_state.records[row.record_index] = setpoint_record.model_validate_json(edited)
-                                st.rerun() # translation above already ran with the old record this pass
-                            except ValidationError as e:
-                                st.error(str(e)) # no rerun: error stays visible, text stays editable
-                    if st.button("Skip for now", key=f"skip_{row.record_index}"):
-                        st.session_state.skipped.add(row.record_index)
-                        st.rerun() # this frame already drew the row as active
+            # UNMAPPED_VARIABLE rows live in the mapping panel below, not this list
+            amendable = [r for r in queued_rows if r.reason_code != json_to_pdl.UNMAPPED_VARIABLE]
+            with st.expander("Rules", expanded=True):
+                if not amendable:
+                    st.caption("No records awaiting amendment.")
+                for row in amendable:
+                    # nested expanders aren't allowed; a bordered container gives each row its box
+                    with st.container(border=True):
+                        st.markdown(f"**{row.function_name} — {row.reason_code}**")
+                        st.write(row.explanation)
+                        st.caption(row.source_text)
+                        if row.reason_code == json_to_pdl.FORMULA_THRESHOLD:
+                            st.caption("REASON: Formula thresholds can't translate until the grammar "
+                                       "supports them.")
+                        with st.form(f"amend_form_{row.record_index}"):
+                            edited = st.text_area(
+                                "Amend record JSON",
+                                value=records[row.record_index].model_dump_json(indent=2),
+                                height=240,
+                                key=f"amend_{row.record_index}",
+                            )
+                            if st.form_submit_button("Apply amendment"):
+                                try:
+                                    # schema-validate BEFORE storing: a non-conforming record in session
+                                    # state would crash translate_records on every rerun (bricked session)
+                                    st.session_state.records[row.record_index] = setpoint_record.model_validate_json(edited)
+                                    st.rerun() # translation above already ran with the old record this pass
+                                except ValidationError as e:
+                                    st.error(str(e)) # no rerun: error stays visible, text stays editable
+                        if st.button("Skip for now", key=f"skip_{row.record_index}"):
+                            st.session_state.skipped.add(row.record_index)
+                            st.rerun() # this frame already drew the row as active
 
             # Human-in-the-loop mapping panel: derived fresh from the queue every rerun, so it
             # always matches reality and dedupes variables shared by several queue rows
