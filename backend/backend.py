@@ -94,7 +94,7 @@ def normalize_file(markdown): # Fixes extraction errors
 
     response = client.messages.create(
     model="claude-haiku-4-5",
-    max_tokens=16192,
+    max_tokens=524288,
     system=SYSTEM_PROMPT,
     messages=[
         {
@@ -335,7 +335,7 @@ def extract_rules(markdown):
 
     response = client.messages.parse(
     model="claude-sonnet-5",
-    max_tokens=8096,
+    max_tokens=524288,
     system=SYSTEM_PROMPT,
     messages=[
         {
