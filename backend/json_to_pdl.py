@@ -1,7 +1,5 @@
 """Deterministic translator: extract_rules JSON records -> PDL monitoring needs.
 
-Implements SECTION_B_SPEC.md (rationale in SECTION_B_RATIONALE.md).
-
 Input:  list of setpoint_record (Pydantic models from important_files.json_schema)
         or their plain-dict equivalents (post-Gate-A edits).
 Output: TranslationResult — PDL text conforming to MonitoringNeeds.g4, a review
