@@ -1,6 +1,6 @@
 # HEAD-END Ingestion Pipeline for the SCADA Compiler
 
-Streamlines the translation process from process document -> rules and setpoints -> Process Description Language for plants.
+Streamlines the translation process from process document -> rules and setpoints -> Process Description Language for plants. Built for Jeyasingam Nivethan's SCADA Compiler framework.
 
 ## Pipeline Overview
 
