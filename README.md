@@ -6,18 +6,6 @@ Streamlines the translation process from process document -> rules and setpoints
 
 <img width="1097" height="221" alt="image" src="https://github.com/user-attachments/assets/4b0e50fa-c9a0-4a96-abc5-6cbed57fd230" />
 
-
-```mermaid
-flowchart LR
-    A([PDF Upload]) -->|HTTP POST| B[MinerU API\nlocal server]
-    B -->|Markdown| C[Claude Haiku\nNormalization]
-    C -->|Normalized text| D[Claude Sonnet\nRule Extraction]
-    D -->|Structured JSON| E[Deterministic Translator\njson_to_pdl.py]
-    E -->|PDL + review queue| F([User Review\nStreamlit Frontend])
-    F -->|Amend & re-translate| E
-    F -->|Approved| G([PDL .txt Output])
-```
-
 ## Pipeline Architecture
 <img width="1103" height="619" alt="image" src="https://github.com/user-attachments/assets/52156456-6f3c-4ba8-9dbf-f851d65a10d6" />
 
